@@ -1,102 +1,130 @@
+from PyQt5.QtWidgets import QApplication, QWidget, QLabel, QLineEdit, QPushButton, QTextEdit, QVBoxLayout, QHBoxLayout, QMessageBox, QDialog, QVBoxLayout
 import sqlite3
-import tkinter as tk
-from tkinter import messagebox
 
-conn = sqlite3.connect('partners.db')
-c = conn.cursor()
+class LoginDialog(QDialog):
+    def __init__(self):
+        super().__init__()
 
-c.execute('''
-				CREATE TABLE IF NOT EXISTS partners (
-								id INTEGER PRIMARY KEY,
-								name TEXT,
-								organization_type TEXT,
-								resources_available TEXT,
-								contact_name TEXT,
-								contact_email TEXT,
-								contact_phone TEXT
-				)
-''')
+        self.setWindowTitle("Login")
+        self.username_label = QLabel("Username:")
+        self.password_label = QLabel("Password:")
+        self.username_entry = QLineEdit()
+        self.password_entry = QLineEdit()
+        self.login_button = QPushButton("Login", clicked=self.authenticate)
 
-def add_partner():
-		name = name_entry.get()
-		organization_type = org_type_entry.get()
-		resources_available = resources_entry.get()
-		contact_name = contact_name_entry.get()
-		contact_email = contact_email_entry.get()
-		contact_phone = contact_phone_entry.get()
+        layout = QVBoxLayout()
+        layout.addWidget(self.username_label)
+        layout.addWidget(self.username_entry)
+        layout.addWidget(self.password_label)
+        layout.addWidget(self.password_entry)
+        layout.addWidget(self.login_button)
 
-		c.execute('''
-						INSERT INTO partners (name, organization_type, resources_available, contact_name, contact_email, contact_phone)
-						VALUES (?, ?, ?, ?, ?, ?)
-		''', (name, organization_type, resources_available, contact_name, contact_email, contact_phone))
+        self.setLayout(layout)
 
-		conn.commit()
-		messagebox.showinfo("Success", "Partner added successfully!")
+    def authenticate(self):
+        username = self.username_entry.text()
+        password = self.password_entry.text()
 
-def search_partners():
-		keyword = search_entry.get()
-		c.execute('''
-						SELECT * FROM partners
-						WHERE name LIKE ? OR organization_type LIKE ? OR resources_available LIKE ? OR contact_name LIKE ?
-		''', ('%' + keyword + '%', '%' + keyword + '%', '%' + keyword + '%', '%' + keyword + '%'))
+        if username == "Joe Sharma" and password == "joesanchit":
+            self.accept()
+        else:
+            QMessageBox.warning(self, "Login Failed", "Invalid username or password.")
 
-		partners = c.fetchall()
-		if partners:
-				result_text.config(state=tk.NORMAL)
-				result_text.delete(1.0, tk.END)
-				for partner in partners:
-						result_text.insert(tk.END, f"{partner}\n")
-				result_text.config(state=tk.DISABLED)
-		else:
-				messagebox.showinfo("No Results", "No matching partners found.")
+class PartnerManagementApp(QWidget):
+    def __init__(self):
+        super().__init__()
 
-root = tk.Tk()
-root.title("Partner Management System")
-root.configure(bg='#2C3E50')
+        self.conn = sqlite3.connect('partners.db')
+        self.c = self.conn.cursor()
 
-# Configure columns and rows to expand proportionally
-root.columnconfigure(0, weight=1)
-root.columnconfigure(1, weight=1)
-root.rowconfigure(8, weight=1)
+        # Create the 'partners' table if it doesn't exist
+        self.c.execute('''
+            CREATE TABLE IF NOT EXISTS partners (
+                id INTEGER PRIMARY KEY,
+                name TEXT,
+                organization_type TEXT,
+                resources_available TEXT,
+                contact_name TEXT,
+                contact_email TEXT,
+                contact_phone TEXT
+            )
+        ''')
+        self.conn.commit()
 
-tk.Label(root, text="1. Name", bg='#2C3E50', fg='white').grid(row=0, column=0, padx=10, pady=5, sticky=tk.W)
-tk.Label(root, text="2. Organization Type", bg='#2C3E50', fg='white').grid(row=1, column=0, padx=10, pady=5, sticky=tk.W)
-tk.Label(root, text="3. Resources", bg='#2C3E50', fg='white').grid(row=2, column=0, padx=10, pady=5, sticky=tk.W)
-tk.Label(root, text="4. Contact Name", bg='#2C3E50', fg='white').grid(row=3, column=0, padx=10, pady=5, sticky=tk.W)
-tk.Label(root, text="5. Contact Email", bg='#2C3E50', fg='white').grid(row=4, column=0, padx=10, pady=5, sticky=tk.W)
-tk.Label(root, text="6. Contact Phone", bg='#2C3E50', fg='white').grid(row=5, column=0, padx=10, pady=5, sticky=tk.W)
+        self.init_ui()
 
-name_entry = tk.Entry(root, bg='#34495E', fg='white', insertbackground='white')
-org_type_entry = tk.Entry(root, bg='#34495E', fg='white', insertbackground='white')
-resources_entry = tk.Entry(root, bg='#34495E', fg='white', insertbackground='white')
-contact_name_entry = tk.Entry(root, bg='#34495E', fg='white', insertbackground='white')
-contact_email_entry = tk.Entry(root, bg='#34495E', fg='white', insertbackground='white')
-contact_phone_entry = tk.Entry(root, bg='#34495E', fg='white', insertbackground='white')
+    def init_ui(self):
+        self.login_dialog = LoginDialog()
+        result = self.login_dialog.exec_()
 
-search_entry = tk.Entry(root, bg='#34495E', fg='white', insertbackground='white')
-result_text = tk.Text(root, height=10, width=50, state=tk.DISABLED, bg='#34495E', fg='white')
+        if result == QDialog.Accepted:
+            # Widgets
+            self.labels = ["Name", "Organization Type", "Resources", "Contact Name", "Contact Email", "Contact Phone"]
+            self.entries = [QLineEdit() for _ in range(6)]
+            self.search_entry = QLineEdit()
+            self.result_text = QTextEdit()
 
-name_entry.grid(row=0, column=1, padx=10, pady=5)
-org_type_entry.grid(row=1, column=1, padx=10, pady=5)
-resources_entry.grid(row=2, column=1, padx=10, pady=5)
-contact_name_entry.grid(row=3, column=1, padx=10, pady=5)
-contact_email_entry.grid(row=4, column=1, padx=10, pady=5)
-contact_phone_entry.grid(row=5, column=1, padx=10, pady=5)
+            self.add_button = QPushButton("Add Partner", clicked=self.add_partner)
+            self.search_button = QPushButton("Search Partners", clicked=self.search_partners)
+            self.exit_button = QPushButton("Exit", clicked=self.close)
 
-search_entry.grid(row=7, column=0, padx=10, pady=5, sticky=tk.W + tk.E)
-result_text.grid(row=8, column=0, columnspan=2, padx=10, pady=5, sticky=tk.W + tk.E + tk.N + tk.S)
+            # Layout
+            vbox = QVBoxLayout()
 
-add_button = tk.Button(root, text="Add Partner", command=add_partner, bg='#3498DB', fg='white', width=15)
-search_button = tk.Button(root, text="Search Partners", command=search_partners, bg='#3498DB', fg='white', width=15)
-exit_button = tk.Button(root, text="Exit", command=root.destroy, bg='#E74C3C', fg='white', width=15)
+            for label, entry in zip(self.labels, self.entries):
+                hbox = QHBoxLayout()
+                hbox.addWidget(QLabel(f"{label}:"))
+                hbox.addWidget(entry)
+                vbox.addLayout(hbox)
 
-add_button.grid(row=6, column=0, columnspan=2, pady=10, sticky=tk.W + tk.E)
-search_button.grid(row=7, column=1, padx=10, pady=5, sticky=tk.W + tk.E)
-exit_button.grid(row=9, column=0, columnspan=2, pady=10, sticky=tk.W + tk.E)
+            vbox.addWidget(QLabel("Search:"))
+            vbox.addWidget(self.search_entry)
+            vbox.addWidget(self.result_text)
 
-root.mainloop()
+            vbox.addWidget(self.add_button)
+            vbox.addWidget(self.search_button)
+            vbox.addWidget(self.exit_button)
 
-conn.close()
+            self.setLayout(vbox)
+            self.setWindowTitle("Partner Management System")
+        else:
+            self.close()
 
+    def add_partner(self):
+        values = [entry.text() for entry in self.entries]
 
-# responsive and screen better update
+        self.c.execute('''
+            INSERT INTO partners (name, organization_type, resources_available, contact_name, contact_email, contact_phone)
+            VALUES (?, ?, ?, ?, ?, ?)
+        ''', tuple(values))
+
+        self.conn.commit()
+        QMessageBox.information(self, "Success", "Partner added successfully!")
+
+    def search_partners(self):
+        keyword = self.search_entry.text()
+
+        try:
+            self.c.execute('''
+                SELECT * FROM partners
+                WHERE LOWER(name) LIKE ? OR LOWER(organization_type) LIKE ? OR LOWER(resources_available) LIKE ? OR LOWER(contact_name) LIKE ?
+            ''', ('%' + keyword.lower() + '%', '%' + keyword.lower() + '%', '%' + keyword.lower() + '%', '%' + keyword.lower() + '%'))
+
+            partners = self.c.fetchall()
+
+            if partners:
+                self.result_text.setPlainText('\n'.join(map(str, partners)))
+            else:
+                QMessageBox.information(self, "No Results", "No matching partners found.")
+        except Exception as e:
+            QMessageBox.critical(self, "Error", f"An error occurred: {str(e)}")
+
+    def closeEvent(self, event):
+        self.conn.close()
+        event.accept()
+
+if __name__ == '__main__':
+    app = QApplication([])
+    window = PartnerManagementApp()
+    window.show()
+    app.exec_()
