@@ -115,8 +115,6 @@ class PartnerManagementApp(QWidget):
             for label, entry in zip(self.labels, self.entries):
                 hbox = QHBoxLayout()
                 hbox.addWidget(QLabel(f"{label}:"))
-                entry.setEchoMode(QLineEdit.Password)  # Set initial password mode
-                entry.textChanged.connect(lambda text, entry=entry: entry.setEchoMode(QLineEdit.Password if text else QLineEdit.Normal))  # Connect textChanged signal
                 hbox.addWidget(entry)
                 vbox.addLayout(hbox)
 
