@@ -93,8 +93,8 @@ class PartnerManagementApp(QWidget):
 
             self.add_button = QPushButton("Add Partner", clicked=self.add_partner)
             self.search_button = QPushButton("Search Partners", clicked=self.search_partners)
-            self.logout_button = QPushButton("Logout", clicked=self.logout)
-            self.exit_button = QPushButton("Exit", clicked=self.close)
+            self.logout_button = QPushButton("Logout", clicked=self.close)
+            self.exit_button = QPushButton("Exit", clicked=self.logout)
 
             vbox = QVBoxLayout()
 
@@ -124,8 +124,8 @@ class PartnerManagementApp(QWidget):
             self.result_table = QTableWidget()
             self.search_entry = QLineEdit()
             self.search_button = QPushButton("Search Partners", clicked=self.search_partners)
-            self.logout_button = QPushButton("Logout", clicked=self.logout)
-            self.exit_button = QPushButton("Exit", clicked=self.close)
+            self.logout_button = QPushButton("Logout", clicked=self.close)
+            self.exit_button = QPushButton("Exit", clicked=self.logout)
 
             vbox = QVBoxLayout()
 
@@ -204,12 +204,16 @@ class PartnerManagementApp(QWidget):
         event.accept()
 
     def logout(self):
+        self.exit_flag = True
         self.close()
+
 
 if __name__ == '__main__':
     app = QApplication([])
 
-    while True:
+    exit_flag = False
+
+    while not exit_flag:
         login_dialog = LoginDialog()
         result = login_dialog.exec_()
 
@@ -217,5 +221,7 @@ if __name__ == '__main__':
             window = PartnerManagementApp(login_dialog.get_role())
             window.show()
             app.exec_()
+
+            exit_flag = getattr(window, 'exit_flag', False)
         else:
             break
