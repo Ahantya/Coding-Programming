@@ -1,15 +1,29 @@
-from PyQt5.QtWidgets import QApplication, QWidget, QLabel, QLineEdit, QPushButton, QTextEdit, QVBoxLayout, QHBoxLayout, QMessageBox, QDialog, QVBoxLayout
+from PyQt5.QtWidgets import QApplication, QWidget, QLabel, QLineEdit, QPushButton, QVBoxLayout, \
+    QTableWidget, QTableWidgetItem, QHeaderView, QMessageBox, QDialog, QHBoxLayout, QComboBox, QTextEdit
+from enum import Enum
 import sqlite3
+
+class Role(Enum):
+    ADMIN = 1
+    STUDENT = 2
 
 class LoginDialog(QDialog):
     def __init__(self):
         super().__init__()
 
         self.setWindowTitle("Login")
+
         self.username_label = QLabel("Username:")
         self.password_label = QLabel("Password:")
+        self.role_label = QLabel("Role:")
+
         self.username_entry = QLineEdit()
         self.password_entry = QLineEdit()
+        self.password_entry.setEchoMode(QLineEdit.Password)
+        self.role_combobox = QComboBox()
+        self.role_combobox.addItem("Admin")
+        self.role_combobox.addItem("Student")
+
         self.login_button = QPushButton("Login", clicked=self.authenticate)
 
         layout = QVBoxLayout()
@@ -17,27 +31,44 @@ class LoginDialog(QDialog):
         layout.addWidget(self.username_entry)
         layout.addWidget(self.password_label)
         layout.addWidget(self.password_entry)
+        layout.addWidget(self.role_label)
+        layout.addWidget(self.role_combobox)
         layout.addWidget(self.login_button)
 
         self.setLayout(layout)
 
+        self.selected_role = None
+
+    def update_echo_mode(self, text, entry):
+        if text:
+            entry.setEchoMode(QLineEdit.Password)
+        else:
+            entry.setEchoMode(QLineEdit.Normal)
+
     def authenticate(self):
         username = self.username_entry.text()
         password = self.password_entry.text()
+        selected_role = self.role_combobox.currentText()
 
-        if username == "Joe Sharma" and password == "joesanchit":
+        if selected_role == "Admin" and username == "admin" and password == "adminpass":
+            self.selected_role = Role.ADMIN
+            self.accept()
+        elif selected_role == "Student" and username == "student" and password == "studentpass":
+            self.selected_role = Role.STUDENT
             self.accept()
         else:
-            QMessageBox.warning(self, "Login Failed", "Invalid username or password.")
+            QMessageBox.warning(self, "Login Failed", "Invalid username, password, or role.")
+
+    def get_role(self):
+        return self.selected_role
 
 class PartnerManagementApp(QWidget):
-    def __init__(self):
+    def __init__(self, role):
         super().__init__()
 
         self.conn = sqlite3.connect('partners.db')
         self.c = self.conn.cursor()
 
-        # Create the 'partners' table if it doesn't exist
         self.c.execute('''
             CREATE TABLE IF NOT EXISTS partners (
                 id INTEGER PRIMARY KEY,
@@ -51,24 +82,20 @@ class PartnerManagementApp(QWidget):
         ''')
         self.conn.commit()
 
-        self.init_ui()
+        self.init_ui(role)
 
-    def init_ui(self):
-        self.login_dialog = LoginDialog()
-        result = self.login_dialog.exec_()
-
-        if result == QDialog.Accepted:
-            # Widgets
+    def init_ui(self, role):
+        if role == Role.ADMIN:
             self.labels = ["Name", "Organization Type", "Resources", "Contact Name", "Contact Email", "Contact Phone"]
             self.entries = [QLineEdit() for _ in range(6)]
             self.search_entry = QLineEdit()
-            self.result_text = QTextEdit()
+            self.result_table = QTableWidget()
 
             self.add_button = QPushButton("Add Partner", clicked=self.add_partner)
             self.search_button = QPushButton("Search Partners", clicked=self.search_partners)
+            self.logout_button = QPushButton("Logout", clicked=self.logout)
             self.exit_button = QPushButton("Exit", clicked=self.close)
 
-            # Layout
             vbox = QVBoxLayout()
 
             for label, entry in zip(self.labels, self.entries):
@@ -79,14 +106,38 @@ class PartnerManagementApp(QWidget):
 
             vbox.addWidget(QLabel("Search:"))
             vbox.addWidget(self.search_entry)
-            vbox.addWidget(self.result_text)
-
+            vbox.addWidget(self.result_table)
             vbox.addWidget(self.add_button)
             vbox.addWidget(self.search_button)
+            vbox.addWidget(self.logout_button)  # Add logout button
             vbox.addWidget(self.exit_button)
 
             self.setLayout(vbox)
             self.setWindowTitle("Partner Management System")
+
+            self.search_partners()
+        elif role == Role.STUDENT:
+            self.result_table = QTableWidget()
+            self.search_entry = QLineEdit()
+            self.search_button = QPushButton("Search Partners", clicked=self.search_partners)
+            self.logout_button = QPushButton("Logout", clicked=self.logout)
+            self.exit_button = QPushButton("Exit", clicked=self.close)
+
+
+            vbox = QVBoxLayout()
+
+            vbox.addWidget(QLabel("Search:"))
+            vbox.addWidget(self.search_entry)
+            vbox.addWidget(self.result_table)
+
+            vbox.addWidget(self.search_button)
+            vbox.addWidget(self.logout_button)
+            vbox.addWidget(self.exit_button)
+
+            self.setLayout(vbox)
+            self.setWindowTitle("Student View - Partner Management System")
+
+            self.search_partners()
         else:
             self.close()
 
@@ -112,19 +163,51 @@ class PartnerManagementApp(QWidget):
 
             partners = self.c.fetchall()
 
-            if partners:
-                self.result_text.setPlainText('\n'.join(map(str, partners)))
-            else:
-                QMessageBox.information(self, "No Results", "No matching partners found.")
+            self.display_table(partners)
         except Exception as e:
             QMessageBox.critical(self, "Error", f"An error occurred: {str(e)}")
+
+    def display_table(self, data):
+        self.result_table.clear()
+
+        column_headers = ["ID", "Name", "Organization Type", "Resources", "Contact Name", "Contact Email", "Contact Phone"]
+        self.result_table.setColumnCount(len(column_headers))
+        self.result_table.setHorizontalHeaderLabels(column_headers)
+
+        self.result_table.setRowCount(len(data))
+        for row_index, row_data in enumerate(data):
+            for col_index, cell_data in enumerate(row_data):
+                item = QTableWidgetItem(str(cell_data))
+                self.result_table.setItem(row_index, col_index, item)
+
+        self.result_table.resizeColumnsToContents()
+        self.result_table.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
 
     def closeEvent(self, event):
         self.conn.close()
         event.accept()
 
+    def logout(self):
+        # Close the current window
+        self.close()
+
+        # Open a new login dialog to allow the user to log in with a different role
+        login_dialog = LoginDialog()
+        result = login_dialog.exec_()
+
+        if result == QDialog.Accepted:
+            # Create a new instance of PartnerManagementApp with the new role
+            window = PartnerManagementApp(login_dialog.get_role())
+            window.show()
+
 if __name__ == '__main__':
     app = QApplication([])
-    window = PartnerManagementApp()
-    window.show()
+
+    login_dialog = LoginDialog()
+    result = login_dialog.exec_()
+
+    if result == QDialog.Accepted:
+        window = PartnerManagementApp(login_dialog.get_role())
+        window.show()
+
     app.exec_()
