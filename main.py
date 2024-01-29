@@ -109,7 +109,11 @@ class PartnerManagementApp(QWidget):
             vbox.addWidget(self.result_table)
             vbox.addWidget(self.add_button)
             vbox.addWidget(self.search_button)
-            vbox.addWidget(self.logout_button)  # Add logout button
+
+            self.delete_all_button = QPushButton("Delete All Data", clicked=self.delete_all_data)
+            vbox.addWidget(self.delete_all_button)
+
+            vbox.addWidget(self.logout_button)
             vbox.addWidget(self.exit_button)
 
             self.setLayout(vbox)
@@ -122,7 +126,6 @@ class PartnerManagementApp(QWidget):
             self.search_button = QPushButton("Search Partners", clicked=self.search_partners)
             self.logout_button = QPushButton("Logout", clicked=self.logout)
             self.exit_button = QPushButton("Exit", clicked=self.close)
-
 
             vbox = QVBoxLayout()
 
@@ -183,31 +186,36 @@ class PartnerManagementApp(QWidget):
         self.result_table.resizeColumnsToContents()
         self.result_table.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
 
+    def delete_all_data(self):
+        reply = QMessageBox.question(self, "Delete All Data", "Are you sure you want to delete all data?",
+                                     QMessageBox.Yes | QMessageBox.No, QMessageBox.Yes)
+
+        if reply == QMessageBox.Yes:
+            try:
+                self.c.execute('DELETE FROM partners')
+                self.conn.commit()
+                QMessageBox.information(self, "Success", "All data deleted successfully!")
+                self.search_partners()
+            except Exception as e:
+                QMessageBox.critical(self, "Error", f"An error occurred: {str(e)}")
+
     def closeEvent(self, event):
         self.conn.close()
         event.accept()
 
     def logout(self):
-        # Close the current window
         self.close()
-
-        # Open a new login dialog to allow the user to log in with a different role
-        login_dialog = LoginDialog()
-        result = login_dialog.exec_()
-
-        if result == QDialog.Accepted:
-            # Create a new instance of PartnerManagementApp with the new role
-            window = PartnerManagementApp(login_dialog.get_role())
-            window.show()
 
 if __name__ == '__main__':
     app = QApplication([])
 
-    login_dialog = LoginDialog()
-    result = login_dialog.exec_()
+    while True:
+        login_dialog = LoginDialog()
+        result = login_dialog.exec_()
 
-    if result == QDialog.Accepted:
-        window = PartnerManagementApp(login_dialog.get_role())
-        window.show()
-
-    app.exec_()
+        if result == QDialog.Accepted:
+            window = PartnerManagementApp(login_dialog.get_role())
+            window.show()
+            app.exec_()
+        else:
+            break
