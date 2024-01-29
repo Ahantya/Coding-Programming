@@ -3,6 +3,32 @@ from PyQt5.QtWidgets import QApplication, QWidget, QLabel, QLineEdit, QPushButto
 from enum import Enum
 import sqlite3
 
+from login_dialog import LoginDialog
+from role import Role
+from partner_management_app import PartnerManagementApp
+
+if __name__ == '__main__':
+    app = QApplication([])
+
+    exit_flag = False
+
+    while not exit_flag:
+        login_dialog = LoginDialog()
+        result = login_dialog.exec_()
+
+        if result == QDialog.Accepted:
+            window = PartnerManagementApp(login_dialog.get_role())
+            window.show()
+            app.exec_()
+
+            exit_flag = getattr(window, 'exit_flag', False)
+        else:
+            break
+""" from PyQt5.QtWidgets import QApplication, QWidget, QLabel, QLineEdit, QPushButton, QVBoxLayout, \
+    QTableWidget, QTableWidgetItem, QHeaderView, QMessageBox, QDialog, QHBoxLayout, QComboBox, QTextEdit
+from enum import Enum
+import sqlite3
+
 class Role(Enum):
     ADMIN = 1
     STUDENT = 2
@@ -225,3 +251,4 @@ if __name__ == '__main__':
             exit_flag = getattr(window, 'exit_flag', False)
         else:
             break
+            """
